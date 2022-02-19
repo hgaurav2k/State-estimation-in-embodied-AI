@@ -25,10 +25,7 @@ def incorporate_measurement(prev_estimate,U_t,Z_t,A_t,B_t,C_t,Q):
     return new_estimate
 
 def incorporate_nonlinear_measurement(prev_estimate,Z_t,H_t,h_t,S_t):
-    '''
-    h_t and H_t(h_t^') are functions since they need to be evaluated
-    on mu_dash which is not available yet
-    '''
+
     sigma_dash = prev_estimate.sigma
     mu_dash = prev_estimate.mu
     temp = sigma_dash @ np.transpose(H_t)
