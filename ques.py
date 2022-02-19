@@ -245,5 +245,78 @@ def q1f():
     plt.show()
 
 
+def q2c():
+
+    R = np.eye(4)*0.0001
+    # R = np.zeros((4,4))
+    Q = np.eye(2) * 100
+    airplane_model = AirplaneModel(X_0=np.array([3,-7,-0.4*np.sin(0.3),0.4*np.cos(0.3)]).reshape((4, 1)), Q=Q, R=R)
+    T = 400
+    actual_states = [airplane_model.initial_state]  ## list of state objects
+    estimated_states = [airplane_model.estimated_state]  ##list of Gaussians
+    sensor_readings = []
+    markers = [True,]
+    A_t = np.eye(4)
+    A_t[0, 2] = A_t[1, 3] = airplane_model.del_t
+    B_t = np.concatenate((np.zeros((2, 2)), np.eye(2)), axis=0)
+    C_t = np.eye(2, 4)
+    U_t = np.zeros((2, 1))
+    S_t = np.eye(1)
+    for i in range(1, T + 1):
+        U_t = (np.array([np.sin(np.pi * i / 10), np.cos(np.pi * i / 10)])).reshape((2, 1))
+        # print(U_t)
+        U_t = np.zeros((2,1))
+
+        airplane_model.state = airplane_model.apply_action(U_t, airplane_model.state, A_t, B_t)
+        # print(airplane_model.state)
+        Z_t = airplane_model.get_sensor_readings(airplane_model.state)
+        sensor_readings.append(Z_t)
+        # estimated_state = airplane_model.filter(estimated_states[-1], U_t, Z_t, A_t, B_t, C_t)
+        estimated_state = incorporate_action(estimated_states[-1],U_t,A_t,B_t,R)
+        estimated_state = incorporate_measurement(estimated_state,U_t,Z_t,A_t,B_t,C_t,Q)
+        dist,landmark = airplane_model.get_landmark_info()
+        markers.append(False)
+        if dist != None:
+            markers[-1] = True
+            h_t = np.sqrt((estimated_state.mu[0,0]-landmark[0])**2+(estimated_state.mu[1,0]-landmark[1])**2)
+            H_t = np.zeros((1,4))
+            H_t[0,0],H_t[0,1] = (estimated_state.mu[0,0]-landmark[0])/h_t,(estimated_state.mu[1,0]-landmark[1])/h_t
+            h_t = np.array([h_t])
+            Z_t = np.array([dist])
+            estimated_state = incorporate_nonlinear_measurement(estimated_state,Z_t,H_t,h_t,S_t)
+        actual_states.append(airplane_model.state)
+        estimated_states.append(estimated_state)
+
+    x = []
+    y = []
+    for state in actual_states:
+        x.append(state[0,0])
+        y.append(state[1,0])
+
+    plt.plot(x,y)
+
+    x = []
+    y = []
+    cnt = 0
+    for state in estimated_states:
+        if cnt%5 == 0:
+            if markers[cnt]:
+                plt.plot(state.mu[0, 0], state.mu[1, 0],marker='x')
+            draw_ellipse(state.mu[0, 0], state.mu[1, 0], np.sqrt(state.sigma[0, 0]), np.sqrt(state.sigma[1, 1]))
+        x.append(state.mu[0, 0])
+        y.append(state.mu[1, 0])
+        cnt = cnt + 1
+
+    plt.plot(x, y)
+
+    # x = []
+    # y = []
+    # for state in sensor_readings:
+    #     x.append(state[0, 0])
+    #     y.append(state[1, 0])
+    #
+    # plt.plot(x, y)
+    plt.show()
+
 if __name__ == '__main__':
-    q1f()
+    q2c()
