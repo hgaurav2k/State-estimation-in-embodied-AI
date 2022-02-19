@@ -8,6 +8,38 @@ class Gaussian(object):
         self.sigma = sigma
         return
 
+
+def incorporate_action(prev_estimate,U_t,A_t,B_t,R):
+    mu_dash = (A_t @ prev_estimate.mu) + (B_t @ U_t)
+    sigma_dash = (A_t @ (prev_estimate.sigma @ np.transpose(A_t))) + R
+    return Gaussian(mu_dash,sigma_dash)
+
+def incorporate_measurement(prev_estimate,U_t,Z_t,A_t,B_t,C_t,Q):
+    sigma_dash = prev_estimate.sigma
+    mu_dash = prev_estimate.mu
+    temp = sigma_dash @ np.transpose(C_t)
+    kalman_gain = temp @ np.linalg.inv(C_t @ temp + Q)
+    new_estimate = Gaussian()
+    new_estimate.mu = mu_dash + kalman_gain @ (Z_t - C_t @ mu_dash)
+    new_estimate.sigma = (np.eye(sigma_dash.shape[0]) - kalman_gain @ C_t) @ sigma_dash
+    return new_estimate
+
+def incorporate_nonlinear_measurement(prev_estimate,Z_t,H_t,h_t,S_t):
+    '''
+    h_t and H_t(h_t^') are functions since they need to be evaluated
+    on mu_dash which is not available yet
+    '''
+    sigma_dash = prev_estimate.sigma
+    mu_dash = prev_estimate.mu
+    temp = sigma_dash @ np.transpose(H_t)
+    kalman_gain = temp @ np.linalg.inv(H_t @ temp + S_t)
+    new_estimate = Gaussian()
+    new_estimate.mu = mu_dash + kalman_gain @ (Z_t - h_t)
+    new_estimate.sigma = (np.eye(sigma_dash.shape[0]) - kalman_gain @ H_t) @ sigma_dash
+    return new_estimate
+
+
+
 class KalmanFilter(object):
     def __init__(self,Q,R):
         self.Q = Q
@@ -32,7 +64,23 @@ class KalmanFilter(object):
         return new_estimate
 
 
+class ExtendedKalmanFilter(object):
+
+    def __init__(self):
+        return
+    def __call__(self,prev_estimate,U_t,Z_t,A_t,B_t,H_t,h_t,Q_t,R_t):
+        '''
+        h_t and H_t(h_t^') are functions since they need to be evaluated
+        on mu_dash which is not available yet
+        '''
+        new_estimate = incorporate_action(prev_estimate,U_t,A_t,B_t,R_t)
+
+
+
+
+
 class AirplaneModel(object):
+
     def __init__(self,X_0,Q,R,del_t=1,filter=KalmanFilter):
         '''
         state = (x,y,x_dot,y_dot)
@@ -45,6 +93,8 @@ class AirplaneModel(object):
         self.state = self.initial_state
         self.estimated_state = Gaussian(X_0,np.eye(R.shape[0])*0.0001) #to be checked
         self.filter = filter(Q,R)
+        self.landmarks = [(-100,-100),(-100,100),(100,100),(100,-100),(0,0)]
+        self.landmark_range = 30
 
     def get_sensor_readings(self,X_t):
         '''
@@ -60,20 +110,20 @@ class AirplaneModel(object):
         return np.expand_dims(np.random.multivariate_normal(mean=(A_t @ X_t+ B_t @ U_t).squeeze(),cov=self.R),axis=1)
 
 
-def incorporate_action(prev_estimate,U_t,A_t,B_t,R):
-    mu_dash = (A_t @ prev_estimate.mu) + (B_t @ U_t)
-    sigma_dash = (A_t @ (prev_estimate.sigma @ np.transpose(A_t))) + R
-    return Gaussian(mu_dash,sigma_dash)
+    def get_landmark_info(self):
+        def dist(x):
+            return np.sqrt((self.state[0,0]-x[0])**2+(self.state[1,0]-x[1])**2)
+        min_dist = 1e9
+        closest  = -1
+        for landmark in self.landmarks:
+            if dist(landmark) < min_dist:
+                closest = landmark
+                min_dist = dist(landmark)
 
-def incorporate_measurement(prev_estimate,U_t,Z_t,A_t,B_t,C_t,Q):
-    sigma_dash = prev_estimate.sigma
-    mu_dash = prev_estimate.mu
-    temp = sigma_dash @ np.transpose(C_t)
-    kalman_gain = temp @ np.linalg.inv(C_t @ temp + Q)
-    new_estimate = Gaussian()
-    new_estimate.mu = mu_dash + kalman_gain @ (Z_t - C_t @ mu_dash)
-    new_estimate.sigma = (np.eye(sigma_dash.shape[0]) - kalman_gain @ C_t) @ sigma_dash
-    return new_estimate
+        if min_dist <= 30:
+            return min_dist+np.random.normal(0,1),closest
+        else:
+            return None,None
 
 def greedy_data_assoc(estimates,observations):
     n = len(estimates)
@@ -108,6 +158,8 @@ def DataAssociativeKalmanFilter(prev_estimates,U_t,Z_t,A_t,B_t,C_t,Q_t,R_t):
         new_estimates.append(incorporate_measurement(prev_estimate,u_t,Z_t[idx],a_t,b_t,c_t,q_t))
 
     return new_estimates
+
+
 
 def draw_ellipse(x,y,a,b):
     t = np.linspace(0, 2 * np.pi, 100)
