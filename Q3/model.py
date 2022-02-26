@@ -62,8 +62,8 @@ class Model(object):
             return 0
         neighbours = 0
         for direction in [(-1, 0), (0, 1), (1, 0), (0, -1)]:
-            x = nextState[0] + direction[0]
-            y = nextState[1] + direction[1]
+            x = currState[0] + direction[0]
+            y = currState[1] + direction[1]
             if not self.grid.isWall(x, y):
                 neighbours += 1
         assert(neighbours != 0)
@@ -111,6 +111,7 @@ class Model(object):
     def getMostLikelyPath(self, observations):
         T = len(observations)
         M = [[[0 for _ in range(self.grid.getWidth())] for _ in range(self.grid.getHeight())] for _ in range(T+1)]
+        prev = [[[(-1, -1) for _ in range(self.grid.getWidth())] for _ in range(self.grid.getHeight())] for _ in range(T+1)]
         for x in range(self.grid.getHeight()):
             for y in range(self.grid.getWidth()):
                 if self.grid.isWall(x, y):
@@ -131,10 +132,18 @@ class Model(object):
                         for y in range(self.grid.getWidth()):
                             if self.grid.isWall(x, y):
                                 continue
-                            M[t][nextX][nextY] = max(M[t][nextX][nextY], self.probabilityNextState((x, y), (nextX, nextY)) * M[t-1][x][y])
+                            if self.probabilityNextState((x, y), (nextX, nextY)) * M[t-1][x][y] >= M[t][nextX][nextY]:
+                                M[t][nextX][nextY] = self.probabilityNextState((x, y), (nextX, nextY)) * M[t-1][x][y]
+                                prev[t][nextX][nextY] = (x, y)
                     M[t][nextX][nextY] *= self.probabilityObservation((nextX, nextY), observations[t-1])
-        x = 0
-        y = 0
+            total = sum(sum(row) for row in M[t])
+            assert(total != 0)
+            for nextX in range(self.grid.getHeight()):
+                for nextY in range(self.grid.getWidth()):
+                    if self.grid.isWall(nextX, nextY):
+                        continue
+                    M[t][nextX][nextY] /= total
+        
         maximumProbability = 0
         mostLikelyPath = []
         for x in range(self.grid.getHeight()):
@@ -144,19 +153,7 @@ class Model(object):
                 if M[T][x][y] > maximumProbability:
                     maximumProbability = M[T][x][y]
                     mostLikelyPath = [(x, y)]
-        for t in range(T-1, 0, -1):
-            x = mostLikelyPath[-1][0]
-            y = mostLikelyPath[-1][1]
-            done = False
-            for prevX in range(self.grid.getHeight()):
-                if done:
-                    break
-                for prevY in range(self.grid.getWidth()):
-                    if done:
-                        break
-                    if self.grid.isWall(prevX, prevY):
-                        continue
-                    if M[t+1][x][y] == self.probabilityObservation((prevX, prevY), observations[t-1]) * self.probabilityNextState((prevX, prevY), (x, y)) * M[t][prevX][prevY]:
-                        mostLikelyPath.append((prevX, prevY))
-                        done = True
+        for t in range(T, 1, -1):
+            mostLikelyPath.append(prev[t][mostLikelyPath[-1][0]][mostLikelyPath[-1][1]])
+        mostLikelyPath.reverse()
         return mostLikelyPath
