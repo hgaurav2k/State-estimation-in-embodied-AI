@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import statistics
 
 R = 5
-LAYOUT = 'layouts/sample.lay'
+LAYOUT = 'layouts/easy.lay'
 
 def q3a():
     grid = Grid(LAYOUT)
@@ -56,7 +56,7 @@ def q3a():
         gridData[robot.getPosition()[0]][robot.getPosition()[1]] += 1
         gridData[estimatedPosition[0]][estimatedPosition[1]] += 2
         plt.imshow(gridData, cmap=cmap, norm=norm)
-        plt.pause(0.5)
+        plt.pause(0.1)
         gridData[robot.getPosition()[0]][robot.getPosition()[1]] -= 1
         gridData[estimatedPosition[0]][estimatedPosition[1]] -= 2
     
@@ -70,13 +70,13 @@ def q3a():
     X = [p[0] for p in path]
     Y = [p[1] for p in path]
     axis[0].plot(Y, X)
-    axis[0].grid()
+    # axis[0].grid()
     axis[0].imshow(gridData, cmap=cmap, norm=norm)
 
     X = [p[0] for p in mostLikelyPath]
     Y = [p[1] for p in mostLikelyPath]
     axis[1].plot(Y, X, 'y')
-    axis[1].grid()
+    # axis[1].grid()
     axis[1].imshow(gridData, cmap=cmap, norm=norm)
 
     plt.show()
@@ -112,8 +112,8 @@ def q3b():
                 if not grid.isWall(x, y):
                     gridData[x][y] = 1 - belief[x][y]
         
-        plt.imshow(gridData, cmap='gray')
-        plt.pause(0.5)
+        # plt.imshow(gridData, cmap='gray')
+        # plt.pause(0.5)
 
         observation = robot.getObservation()
         belief = model.updateBeliefWithObservation(belief, observation)
@@ -123,8 +123,10 @@ def q3b():
                 if not grid.isWall(x, y):
                     gridData[x][y] = 1 - belief[x][y]
         
+        plt.plot([robot.getPosition()[1]], [robot.getPosition()[0]], 'ro')
         plt.imshow(gridData, cmap='gray')
         plt.pause(0.5)
+        plt.clf()
     
     plt.show()
 
@@ -132,6 +134,7 @@ def q3c():
     estimatedPathErrors = []
     mostLikelyPathErrors = []
     for _ in range(50):
+        print('Iteration:', _)
         grid = Grid(LAYOUT)
         robot = Robot(grid, R)
         model = Model(grid, R)
