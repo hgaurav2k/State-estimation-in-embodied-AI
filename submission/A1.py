@@ -7,9 +7,8 @@ import os,sys
 
 ## model for Q3 ##
 class Grid(object):
-    def __init__(self, layoutFile):
-        with open(layoutFile) as f:
-            self.grid = [line.strip() for line in f]
+    def __init__(self, grid):
+        self.grid = grid
         self.height = len(self.grid)
         self.width = len(self.grid[0])
 
@@ -73,8 +72,7 @@ class Model(object):
         self.R = R
 
     def probabilityNextState(self, currState, nextState):
-        if abs(nextState[0] - currState[0]) + abs(nextState[1] - currState[1]) != 1 or self.grid.isWall(nextState[0],
-                                                                                                        nextState[1]):
+        if abs(nextState[0] - currState[0]) + abs(nextState[1] - currState[1]) != 1 or self.grid.isWall(nextState[0], nextState[1]):
             return 0
         neighbours = 0
         for direction in [(-1, 0), (0, 1), (1, 0), (0, -1)]:
@@ -111,8 +109,7 @@ class Model(object):
                     for currY in range(self.grid.getWidth()):
                         if self.grid.isWall(currX, currY):
                             continue
-                        nextBelief[nextX][nextY] += self.probabilityNextState((currX, currY), (nextX, nextY)) * \
-                                                    currBelief[currX][currY]
+                        nextBelief[nextX][nextY] += self.probabilityNextState((currX, currY), (nextX, nextY)) * currBelief[currX][currY]
         return nextBelief
 
     def updateBeliefWithObservation(self, currBelief, observation):
@@ -336,8 +333,6 @@ def draw_ellipse(x,y,a,b,color='orange'):
 
 
 #### experiments for Q1,2 #####
-
-from model import *
 import random
 
 def q1a():
@@ -731,29 +726,114 @@ def q2c():
 
 
 ### experiments for Q3 #####
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import statistics
+import math
+
+EASY = ['#####################',
+        '#.........#...#..#..#',
+        '#.#.#...#...#...#...#',
+        '#.#..#.#..#..#.#.#..#',
+        '#..#..#.......#..#.##',
+        '#.#..#....#..#.#.#..#',
+        '#.#.#.......#....#..#',
+        '#..#..###.#.#..#...##',
+        '#...##..#......##...#',
+        '#.........#..#..#...#',
+        '#.#.#.#.#...#.#.#.#.#',
+        '#...#.##..#.........#',
+        '#...#..........##...#',
+        '#..#...#..#......#..#',
+        '#..#..##........#...#',
+        '#..###....#....#....#',
+        '#.....##......#.....#',
+        '#....#.#..#..#.#....#',
+        '#...#...#...#...#...#',
+        '#.........#.........#',
+        '#####################']
+MEDIUM = ['####################',
+          '#...#.........#....#',
+          '#...#.........#....#',
+          '#...#.........#....#',
+          '#...#.........#....#',
+          '#...#.........#....#',
+          '#...#....#....#....#',
+          '#...#....#....#....#',
+          '#........#....#....#',
+          '#........#....#....#',
+          '#........#.........#',
+          '#####....#.........#',
+          '#........#.........#',
+          '#........#.........#',
+          '#....#...#......####',
+          '#....#...#.........#',
+          '#....#...#.....#...#',
+          '#....#...#.....#...#',
+          '#....#...#.....#...#',
+          '####################']
+HARD = ['#####################',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#####################',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#.........#.........#',
+        '#####################']
+OPEN = ['####################',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '#..................#',
+        '####################']
+CLOSED = ['#########',
+          '#.......#',
+          '#..##...#',
+          '#..##...#',
+          '#########']
+
 
 R = 5
-LAYOUT = 'layouts/sample.lay'
-
+LAYOUT = MEDIUM
+random.seed(4)
 
 def q3a():
     grid = Grid(LAYOUT)
     robot = Robot(grid, R)
     model = Model(grid, R)
 
-    cmap = mpl.colors.ListedColormap(['black', 'white', 'red', 'yellow', 'green'])
-    bounds = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
-    norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-
     gridData = [[1 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
             if grid.isWall(x, y):
                 gridData[x][y] = 0
-
+    
     belief = [[0 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
@@ -763,10 +843,10 @@ def q3a():
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
             belief[x][y] /= total
-
+    
     path = []
     observations = []
-
+    
     for t in range(1, 26):
         if t != 1:
             robot.move()
@@ -786,48 +866,46 @@ def q3a():
                     maxProbability = belief[x][y]
                     estimatedPosition = (x, y)
 
-        gridData[robot.getPosition()[0]][robot.getPosition()[1]] += 1
-        gridData[estimatedPosition[0]][estimatedPosition[1]] += 2
-        plt.imshow(gridData, cmap=cmap, norm=norm)
-        plt.pause(0.1)
-        gridData[robot.getPosition()[0]][robot.getPosition()[1]] -= 1
-        gridData[estimatedPosition[0]][estimatedPosition[1]] -= 2
-
+        plt.plot([robot.getPosition()[1]], [robot.getPosition()[0]], 'ro')
+        plt.plot([estimatedPosition[1]], [estimatedPosition[0]], 'yo')
+        plt.imshow(gridData, cmap='gray')
+        plt.pause(0.3)
+        plt.clf()
+    
     plt.show()
 
     mostLikelyPath = model.getMostLikelyPath(observations)
-    print(path)
-    print(mostLikelyPath)
 
     figure, axis = plt.subplots(2)
 
     X = [p[0] for p in path]
     Y = [p[1] for p in path]
     axis[0].plot(Y, X)
-    # axis[0].grid()
-    axis[0].imshow(gridData, cmap=cmap, norm=norm)
+    axis[0].imshow(gridData, cmap='gray')
 
     X = [p[0] for p in mostLikelyPath]
     Y = [p[1] for p in mostLikelyPath]
     axis[1].plot(Y, X, 'y')
-    # axis[1].grid()
-    axis[1].imshow(gridData, cmap=cmap, norm=norm)
+    axis[1].imshow(gridData, cmap='gray')
 
     plt.show()
 
+    print('Path:', path)
+    print('Most Likely Path:', mostLikelyPath)
+    print('Observations:', observations)
 
 def q3b():
     grid = Grid(LAYOUT)
     robot = Robot(grid, R)
     model = Model(grid, R)
 
-    gridData = [[1 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
+    gridData = [[0 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
             if grid.isWall(x, y):
-                gridData[x][y] = 0
-
-    belief = [[0 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
+                gridData[x][y] = -0.5
+    
+    belief = [[0.0 for _ in range(grid.getWidth())] for _ in range(grid.getHeight())]
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
             if not grid.isWall(x, y):
@@ -836,19 +914,11 @@ def q3b():
     for x in range(grid.getHeight()):
         for y in range(grid.getWidth()):
             belief[x][y] /= total
-
+    
     for t in range(1, 26):
         if t != 1:
             robot.move()
             belief = model.updateBeliefWithTime(belief)
-
-        for x in range(grid.getHeight()):
-            for y in range(grid.getWidth()):
-                if not grid.isWall(x, y):
-                    gridData[x][y] = 1 - belief[x][y]
-
-        # plt.imshow(gridData, cmap='gray')
-        # plt.pause(0.5)
 
         observation = robot.getObservation()
         belief = model.updateBeliefWithObservation(belief, observation)
@@ -856,15 +926,14 @@ def q3b():
         for x in range(grid.getHeight()):
             for y in range(grid.getWidth()):
                 if not grid.isWall(x, y):
-                    gridData[x][y] = 1 - belief[x][y]
-
+                    gridData[x][y] = max(math.log(1 - belief[x][y]), -0.5)
+        
         plt.plot([robot.getPosition()[1]], [robot.getPosition()[0]], 'ro')
         plt.imshow(gridData, cmap='gray')
         plt.pause(0.5)
         plt.clf()
-
+    
     plt.show()
-
 
 def q3c():
     estimatedPathErrors = []
@@ -884,7 +953,7 @@ def q3c():
         for x in range(grid.getHeight()):
             for y in range(grid.getWidth()):
                 belief[x][y] /= total
-
+        
         positionError = 0
         mostLikelyPathError = 0
         observations = []
@@ -905,18 +974,20 @@ def q3c():
                     if belief[x][y] > maxProbability:
                         maxProbability = belief[x][y]
                         estimatedPosition = (x, y)
-
-            positionError += abs(robot.getPosition()[0] - estimatedPosition[0]) + abs(
-                robot.getPosition()[1] - estimatedPosition[1])
+            
+            positionError += abs(robot.getPosition()[0] - estimatedPosition[0]) + abs(robot.getPosition()[1] - estimatedPosition[1])
         mostLikelyPath = model.getMostLikelyPath(observations)
         for i in range(len(mostLikelyPath)):
             mostLikelyPathError += abs(path[i][0] - mostLikelyPath[i][0]) + abs(path[i][1] - mostLikelyPath[i][1])
         estimatedPathErrors.append(positionError)
         mostLikelyPathErrors.append(mostLikelyPathError)
-
+    
     print('Position Estimation Error Mean:', statistics.mean(estimatedPathErrors))
     print('Position Estimation Error Std Dev:', statistics.stdev(estimatedPathErrors))
     print('Most Likely Path Error Mean:', statistics.mean(mostLikelyPathErrors))
     print('Most Likely Path Error Std Dev:', statistics.stdev(mostLikelyPathErrors))
 
-q3a()
+
+
+if __name__ == '__main__':
+    q3a()
